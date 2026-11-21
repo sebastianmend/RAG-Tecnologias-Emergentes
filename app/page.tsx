@@ -1,103 +1,78 @@
-import Image from "next/image";
+import Link from "next/link";
+
+const integrantes = ["Jan Villavicencio", "Sebastián Mendieta", "Cristian Jiménez", "Samuel Reyes"];
+
+const pasos = [
+  ["1", "Documentos", "Tus planes docentes en PDF."],
+  ["2", "Fragmentos + embeddings", "Se dividen por materia y semana y se convierten en vectores."],
+  ["3", "Búsqueda", "Tu pregunta busca los fragmentos más parecidos."],
+  ["4", "Respuesta", "El modelo responde solo con esos fragmentos y cita la fuente."],
+];
+
+const filas = [
+  ["Preparación inicial", "20 a 40 min por materia leyendo y copiando", "1 a 2 min por materia, con revisión"],
+  ["Consultas sueltas", "Buscar manualmente en el PDF", "Pregunta en lenguaje natural, con fuente"],
+  ["Aviso semanal", "Depende de que te acuerdes", "Correo automático cada viernes"],
+  ["Errores", "Humanos (copiar mal una fecha)", "Posibles alucinaciones; se mitigan con revisión y citas"],
+  ["Costo", "Tu tiempo", "Cero (planes gratuitos)"],
+];
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="space-y-12">
+      <section className="space-y-4">
+        <span className="chip">RAG + Agente de IA</span>
+        <h1 className="text-4xl font-bold tracking-tight">Tus planes docentes, convertidos en un asistente</h1>
+        <p className="muted max-w-2xl text-lg">Sube los PDF de tus materias, pregunta cuándo es cada prueba y recibe cada viernes un resumen de tu semana siguiente, con una sugerencia de estudio.</p>
+        <Link href="/demo" className="btn btn-primary">Probar la demo →</Link>
+      </section>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">¿Qué es RAG?</h2>
+        <p className="max-w-3xl">RAG significa <b>Retrieval-Augmented Generation</b> (generación aumentada por recuperación). En lugar de que un modelo de IA responda de memoria, primero <b>busca en tus propios documentos</b> los fragmentos relevantes y responde usando solo esos fragmentos. Así las respuestas están ancladas a información real y verificable. Aquí se combina con un <b>agente</b>: un flujo que planifica y ejecuta tareas por sí mismo (armar y enviar tu resumen semanal).</p>
+        <div className="grid gap-3 sm:grid-cols-4">
+          {pasos.map(([n, t, d]) => (
+            <div key={n} className="card"><div className="chip mb-2">Paso {n}</div><div className="font-semibold">{t}</div><div className="muted text-sm">{d}</div></div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">¿Qué hace el aplicativo?</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="card"><b>📄 Lee tus planes</b><p className="muted text-sm">Detecta materia, paralelos, horarios, evaluaciones, temas por semana y fechas importantes. Tú revisas y confirmas.</p></div>
+          <div className="card"><b>💬 Responde tus dudas</b><p className="muted text-sm">«¿Cuándo es la prueba?», «¿Qué veo en la semana 8?». Responde con la fuente.</p></div>
+          <div className="card"><b>📬 Te avisa cada viernes</b><p className="muted text-sm">Un agente arma tu agenda de la semana siguiente y la envía por correo, con una sugerencia de estudio.</p></div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">Con IA vs. sin IA</h2>
+        <p className="muted max-w-3xl">La alternativa sin IA es una hoja de cálculo o un calendario manual: abrir cada PDF, copiar fechas y horarios y revisarlos a mano cada semana.</p>
+        <div className="card overflow-x-auto">
+          <table className="t">
+            <thead><tr><th>Aspecto</th><th>Sin IA (Excel o calendario manual)</th><th>Con RAG + agente</th></tr></thead>
+            <tbody>{filas.map((f) => (<tr key={f[0]}><td><b>{f[0]}</b></td><td>{f[1]}</td><td>{f[2]}</td></tr>))}</tbody>
+          </table>
+        </div>
+        <p className="muted text-xs">Los tiempos sin IA son estimaciones del equipo.</p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-2xl font-semibold">Integrantes</h2>
+        <div className="flex flex-wrap gap-2">{integrantes.map((n) => (<span key={n} className="chip" style={{ fontSize: 14, padding: "6px 14px" }}>{n}</span>))}</div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-2xl font-semibold">Cómo probar la demo</h2>
+        <ol className="list-decimal space-y-1 pl-6">
+          <li>Entra a <b>Demo</b> y sube uno o varios PDF de planes docentes.</li>
+          <li>Revisa lo detectado: elige tu <b>paralelo</b>, corrige horarios y escribe tu correo.</li>
+          <li>Haz preguntas en el chat.</li>
+          <li>Pulsa <b>«Enviarme el resumen ahora»</b> para ver el correo semanal sin esperar al viernes.</li>
+        </ol>
+        <Link href="/demo" className="btn btn-primary">Ir a la demo →</Link>
+      </section>
     </div>
   );
 }
