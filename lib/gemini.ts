@@ -6,9 +6,9 @@ const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! 
 export const MODEL = "gemini-3.5-flash";
 
 export async function generarJSON(system: string, user: string, maxOutputTokens = 32768): Promise<unknown> {
-  const res = await conReintento(
-    () =>
-      ai().models.generateContent({
+  return await conReintento(
+    async () => {
+      const res = await ai().models.generateContent({
         model: MODEL,
         contents: user,
         config: {
@@ -18,12 +18,16 @@ export async function generarJSON(system: string, user: string, maxOutputTokens 
           maxOutputTokens,
           thinkingConfig: { thinkingBudget: 0 },
         },
-      }),
-    2,
+      });
+      const t = (res.text ?? "").replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+      if (!t || (!t.startsWith("{") && !t.startsWith("["))) {
+        throw new Error(`Respuesta no es JSON válido de Gemini: ${t.slice(0, 100)}`);
+      }
+      return JSON.parse(t);
+    },
+    3,
     2000
   );
-  const t = (res.text ?? "").replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
-  return JSON.parse(t);
 }
 
 export type Turno = { role: "user" | "assistant"; content: string };
@@ -33,17 +37,22 @@ export async function generarTexto(system: string, historial: Turno[], pregunta:
     ...historial.map((h) => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.content }] })),
     { role: "user", parts: [{ text: pregunta }] },
   ];
-  const res = await conReintento(
-    () =>
-      ai().models.generateContent({
+  return await conReintento(
+    async () => {
+      const res = await ai().models.generateContent({
         model: MODEL,
         contents,
         config: { systemInstruction: system, temperature: 0.2, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-    2,
+      });
+      const t = (res.text ?? "").trim();
+      if (!t || t.startsWith("An error occurred")) {
+        throw new Error(`Respuesta transitoria inválida de Gemini: ${t.slice(0, 100)}`);
+      }
+      return t;
+    },
+    3,
     2000
   );
-  return (res.text ?? "").trim();
 }
 
 const normalizar = (v: number[]) => {
