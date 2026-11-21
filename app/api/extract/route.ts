@@ -37,11 +37,32 @@ export async function POST(req: Request) {
         const plan = limpiarPlan(PlanSchema.parse(raw));
         return NextResponse.json({ plan });
       } catch (e) {
-        ultimoError = (e as Error).message.slice(0, 600);
+        const errMsg = (e as Error)?.message || String(e);
+        console.error(`[api/extract] Intento ${intento + 1} falló:`, errMsg);
+        ultimoError = errMsg.slice(0, 600);
+
+        if (errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.toLowerCase().includes("quota")) {
+          return NextResponse.json(
+            { error: "Límite de cuota de Gemini alcanzado (429). Espera un momento antes de continuar." },
+            { status: 429 }
+          );
+        }
       }
     }
-    return NextResponse.json({ error: "No se pudo interpretar este plan docente. Verifica que sea el PDF original." }, { status: 422 });
+    console.error("[api/extract] Falló tras reintentos. Último error:", ultimoError);
+    return NextResponse.json(
+      { error: `No se pudo interpretar este plan docente: ${ultimoError || "Verifica que sea el PDF original."}` },
+      { status: 422 }
+    );
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    const errMsg = (e as Error)?.message || String(e);
+    console.error("[api/extract] Error fatal:", errMsg);
+    if (errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.toLowerCase().includes("quota")) {
+      return NextResponse.json(
+        { error: "Límite de cuota de Gemini alcanzado (429). Espera un momento antes de continuar." },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

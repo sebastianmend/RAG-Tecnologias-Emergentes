@@ -19,8 +19,8 @@ export async function generarJSON(system: string, user: string, maxOutputTokens 
           thinkingConfig: { thinkingBudget: 0 },
         },
       }),
-    3,
-    8000
+    2,
+    2000
   );
   const t = (res.text ?? "").replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
   return JSON.parse(t);
@@ -40,8 +40,8 @@ export async function generarTexto(system: string, historial: Turno[], pregunta:
         contents,
         config: { systemInstruction: system, temperature: 0.2, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
       }),
-    3,
-    8000
+    2,
+    2000
   );
   return (res.text ?? "").trim();
 }
