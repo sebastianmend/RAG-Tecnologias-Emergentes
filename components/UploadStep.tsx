@@ -23,66 +23,180 @@ async function pdfATexto(file: File): Promise<string> {
   return texto;
 }
 
-type Estado = { nombre: string; estado: "leyendo" | "extrayendo" | "listo" | "error"; msg?: string };
+type Item = {
+  file: File;
+  estado: "pendiente" | "leyendo" | "extrayendo" | "listo" | "error";
+  plan?: PlanDocente;
+  msg?: string;
+};
 
 export default function UploadStep({ onListo }: { onListo: (planes: PlanDocente[]) => void }) {
-  const [items, setItems] = useState<Estado[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [ocupado, setOcupado] = useState(false);
+
+  async function extraerUnArchivo(
+    file: File,
+    onEstado: (e: Partial<Item>) => void
+  ): Promise<PlanDocente> {
+    if (file.size > 15 * 1024 * 1024) throw new Error("Pesa más de 15 MB.");
+    onEstado({ estado: "leyendo" });
+    const texto = await pdfATexto(file);
+    if (texto.trim().length < 500)
+      throw new Error("Parece un PDF escaneado. Sube el PDF original del plan docente.");
+    onEstado({ estado: "extrayendo" });
+    const r = await fetch("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "Error al extraer.");
+    onEstado({ estado: "listo", plan: j.plan });
+    return j.plan as PlanDocente;
+  }
 
   async function procesar(files: FileList | null) {
     if (!files || !files.length) return;
-    const lista = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".pdf")).slice(0, 10);
+    const lista = Array.from(files)
+      .filter((f) => f.name.toLowerCase().endsWith(".pdf"))
+      .slice(0, 10);
     if (!lista.length) return;
-    setOcupado(true);
-    setItems(lista.map((f) => ({ nombre: f.name, estado: "leyendo" })));
-    const set = (i: number, e: Partial<Estado>) => setItems((prev) => prev.map((x, j) => (j === i ? { ...x, ...e } : x)));
 
-    const res = await Promise.all(
-      lista.map(async (f, i): Promise<PlanDocente | null> => {
-        try {
-          if (f.size > 15 * 1024 * 1024) throw new Error("Pesa más de 15 MB.");
-          const texto = await pdfATexto(f);
-          if (texto.trim().length < 500) throw new Error("Parece un PDF escaneado. Sube el PDF original del plan docente.");
-          set(i, { estado: "extrayendo" });
-          const r = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto }) });
-          const j = await r.json();
-          if (!r.ok) throw new Error(j.error || "Error al extraer.");
-          set(i, { estado: "listo" });
-          return j.plan as PlanDocente;
-        } catch (e) {
-          set(i, { estado: "error", msg: (e as Error).message });
-          return null;
-        }
-      })
-    );
+    setOcupado(true);
+    const nuevos: Item[] = lista.map((file) => ({ file, estado: "pendiente" }));
+    setItems(nuevos);
+
+    const planesListos: PlanDocente[] = [];
+    let huboError = false;
+
+    // Procesamiento estrictamente secuencial para cuidar cuota y evitar timeouts simultáneos
+    for (let i = 0; i < lista.length; i++) {
+      const f = lista[i];
+      try {
+        const plan = await extraerUnArchivo(f, (patch) => {
+          setItems((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+        });
+        planesListos.push(plan);
+      } catch (e) {
+        huboError = true;
+        setItems((prev) =>
+          prev.map((x, j) => (j === i ? { ...x, estado: "error", msg: (e as Error).message } : x))
+        );
+      }
+      if (i < lista.length - 1) {
+        await new Promise((res) => setTimeout(res, 1000));
+      }
+    }
+
     setOcupado(false);
-    const ok = res.filter((x): x is PlanDocente => !!x);
-    if (ok.length) onListo(ok);
+
+    // Si todos terminaron exitosamente sin errores, avanza automáticamente
+    if (!huboError && planesListos.length > 0) {
+      onListo(planesListos);
+    }
   }
+
+  async function reintentar(indice: number) {
+    const item = items[indice];
+    if (!item || ocupado) return;
+    setOcupado(true);
+    try {
+      const plan = await extraerUnArchivo(item.file, (patch) => {
+        setItems((prev) => prev.map((x, j) => (j === indice ? { ...x, ...patch } : x)));
+      });
+      setItems((prev) => {
+        const actualizados = prev.map((x, j) =>
+          j === indice ? { ...x, estado: "listo" as const, plan, msg: undefined } : x
+        );
+        const todosListos = actualizados.every((x) => x.estado === "listo" && x.plan);
+        if (todosListos) {
+          onListo(actualizados.map((x) => x.plan!));
+        }
+        return actualizados;
+      });
+    } catch (e) {
+      setItems((prev) =>
+        prev.map((x, j) => (j === indice ? { ...x, estado: "error", msg: (e as Error).message } : x))
+      );
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const planesListos = items.filter((x) => x.estado === "listo" && x.plan).map((x) => x.plan!);
+  const tieneErrores = items.some((x) => x.estado === "error");
 
   return (
     <div className="card space-y-4">
       <div>
         <h2 className="text-xl font-semibold">1. Sube tus planes docentes</h2>
-        <p className="muted text-sm">PDF originales de la UTPL (uno por materia, hasta 10). No se guardan los archivos; solo se usa su texto para extraer los datos.</p>
+        <p className="muted text-sm">
+          PDF originales de la UTPL (uno por materia, hasta 10). Se procesan uno a uno para mayor
+          estabilidad.
+        </p>
       </div>
-      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center" style={{ borderColor: "var(--border)" }}>
+
+      <label
+        className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center"
+        style={{ borderColor: "var(--border)" }}
+      >
         <span className="text-3xl">📄</span>
-        <span className="font-semibold">{ocupado ? "Procesando…" : "Haz clic para elegir tus PDF"}</span>
-        <span className="muted text-sm">Cada plan puede tardar entre 20 y 60 segundos</span>
-        <input type="file" accept="application/pdf" multiple hidden disabled={ocupado} onChange={(e) => procesar(e.target.files)} />
+        <span className="font-semibold">
+          {ocupado ? "Procesando planes secuencialmente…" : "Haz clic para elegir tus PDF"}
+        </span>
+        <span className="muted text-sm">Cada plan puede tardar entre 15 y 35 segundos</span>
+        <input
+          type="file"
+          accept="application/pdf"
+          multiple
+          hidden
+          disabled={ocupado}
+          onChange={(e) => procesar(e.target.files)}
+        />
       </label>
-      {items.map((it, i) => (
-        <div key={i} className="flex items-center justify-between text-sm">
-          <span>{it.nombre}</span>
-          <span className={it.estado === "error" ? "err" : "muted"}>
-            {it.estado === "leyendo" && "Leyendo PDF…"}
-            {it.estado === "extrayendo" && "Extrayendo con IA…"}
-            {it.estado === "listo" && "✅ Listo"}
-            {it.estado === "error" && `❌ ${it.msg}`}
-          </span>
+
+      {items.length > 0 && (
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div
+              key={i}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <span className="font-medium">{it.file.name}</span>
+              <div className="flex items-center gap-2">
+                <span className={it.estado === "error" ? "err" : "muted"}>
+                  {it.estado === "pendiente" && "⏳ En cola…"}
+                  {it.estado === "leyendo" && "📖 Leyendo PDF…"}
+                  {it.estado === "extrayendo" && "🤖 Extrayendo con IA…"}
+                  {it.estado === "listo" && "✅ Listo"}
+                  {it.estado === "error" && `❌ ${it.msg}`}
+                </span>
+                {it.estado === "error" && !ocupado && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: 12, padding: "2px 8px" }}
+                    onClick={() => reintentar(i)}
+                  >
+                    🔄 Reintentar
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* Botón para avanzar si algunos fallaron pero el usuario desea continuar con los listos */}
+      {tieneErrores && !ocupado && planesListos.length > 0 && (
+        <div className="pt-2">
+          <button className="btn btn-primary" onClick={() => onListo(planesListos)}>
+            Continuar con los {planesListos.length}{" "}
+            {planesListos.length === 1 ? "plan listo" : "planes listos"} →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
