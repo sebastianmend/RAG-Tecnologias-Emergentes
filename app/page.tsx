@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const integrantes = ["Jan Villavicencio", "Sebastián Mendieta", "Cristian Jiménez", "Samuel Reyes"];
+const integrantes = ["Jean Villavicencio", "Sebastián Mendieta", "Cristian Jiménez", "Samuel Reyes"];
 
 const pasos = [
   ["1", "Documentos", "Tus planes docentes en PDF."],

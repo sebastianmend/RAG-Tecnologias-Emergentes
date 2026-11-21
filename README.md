@@ -10,4 +10,4 @@ Next.js 15 + Gemini (`gemini-3.5-flash`, `gemini-embedding-001`) + Upstash Redis
 2. `npm ci && npm run dev`
 3. `npm run test:cal` valida el calendario.
 
-Integrantes: Jan Villavicencio, Sebastián Mendieta, Cristian Jiménez, Samuel Reyes.
+Integrantes: Jean Villavicencio, Sebastián Mendieta, Cristian Jiménez, Samuel Reyes.

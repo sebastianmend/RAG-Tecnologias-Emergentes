@@ -1061,7 +1061,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```tsx
 import Link from "next/link";
 
-const integrantes = ["Jan Villavicencio", "Sebastián Mendieta", "Cristian Jiménez", "Samuel Reyes"];
+const integrantes = ["Jean Villavicencio", "Sebastián Mendieta", "Cristian Jiménez", "Samuel Reyes"];
 
 const pasos = [
   ["1", "Documentos", "Tus planes docentes en PDF."],
@@ -1552,7 +1552,7 @@ Next.js 15 + Gemini (`gemini-3.5-flash`, `gemini-embedding-001`) + Upstash Redis
 2. `npm ci && npm run dev`
 3. `npm run test:cal` valida el calendario.
 
-Integrantes: Jan Villavicencio, Sebastián Mendieta, Cristian Jiménez, Samuel Reyes.
+Integrantes: Jean Villavicencio, Sebastián Mendieta, Cristian Jiménez, Samuel Reyes.
 ```
 
 ```bash
