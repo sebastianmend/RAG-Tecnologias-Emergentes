@@ -61,25 +61,29 @@ const normalizar = (v: number[]) => {
 };
 
 export async function embed(textos: string[], task: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[][]> {
+  // Lotes de 20 (conservador dentro del free tier de 100 req/min).
+  // Se procesan en serie para evitar disparar muchas requests a la vez.
+  const LOTE = 20;
   const lotes: string[][] = [];
-  for (let i = 0; i < textos.length; i += 60) {
-    lotes.push(textos.slice(i, i + 60));
+  for (let i = 0; i < textos.length; i += LOTE) {
+    lotes.push(textos.slice(i, i + LOTE));
   }
-  const resultadosLotes = await Promise.all(
-    lotes.map((lote) =>
-      conReintento(
-        async () => {
-          const r = await ai().models.embedContent({
-            model: "gemini-embedding-001",
-            contents: lote,
-            config: { taskType: task, outputDimensionality: 256 },
-          });
-          return (r.embeddings ?? []).map((e) => normalizar(e.values ?? []));
-        },
-        3,
-        2000
-      )
-    )
-  );
-  return resultadosLotes.flat();
+
+  const todos: number[][] = [];
+  for (const lote of lotes) {
+    const resultado = await conReintento(
+      async () => {
+        const r = await ai().models.embedContent({
+          model: "gemini-embedding-001",
+          contents: lote,
+          config: { taskType: task, outputDimensionality: 256 },
+        });
+        return (r.embeddings ?? []).map((e) => normalizar(e.values ?? []));
+      },
+      4,      // 4 reintentos en vez de 3
+      35000   // 35 s de espera (el error dice retry in 32 s)
+    );
+    todos.push(...resultado);
+  }
+  return todos;
 }
