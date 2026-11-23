@@ -61,20 +61,25 @@ const normalizar = (v: number[]) => {
 };
 
 export async function embed(textos: string[], task: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[][]> {
-  const out: number[][] = [];
-  for (let i = 0; i < textos.length; i += 40) {
-    const lote = textos.slice(i, i + 40);
-    const r = await conReintento(
-      () =>
-        ai().models.embedContent({
-          model: "gemini-embedding-001",
-          contents: lote,
-          config: { taskType: task, outputDimensionality: 256 },
-        }),
-      4,
-      15000
-    );
-    for (const e of r.embeddings ?? []) out.push(normalizar(e.values ?? []));
+  const lotes: string[][] = [];
+  for (let i = 0; i < textos.length; i += 60) {
+    lotes.push(textos.slice(i, i + 60));
   }
-  return out;
+  const resultadosLotes = await Promise.all(
+    lotes.map((lote) =>
+      conReintento(
+        async () => {
+          const r = await ai().models.embedContent({
+            model: "gemini-embedding-001",
+            contents: lote,
+            config: { taskType: task, outputDimensionality: 256 },
+          });
+          return (r.embeddings ?? []).map((e) => normalizar(e.values ?? []));
+        },
+        3,
+        2000
+      )
+    )
+  );
+  return resultadosLotes.flat();
 }

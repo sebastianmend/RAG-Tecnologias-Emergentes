@@ -37,8 +37,16 @@ export default function Demo() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, semana1, receso: RECESO_DEFECTO, suscrito, materias: planes.map((p) => ({ plan: p.plan, paraleloElegido: p.paralelo })) }),
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Error al confirmar.");
+      let j: any;
+      try {
+        j = await r.json();
+      } catch {
+        if (!r.ok) {
+          throw new Error(`El servidor tardó en responder (${r.status} Gateway Timeout). Por favor pulsa Confirmar nuevamente.`);
+        }
+        throw new Error("Respuesta inválida del servidor al confirmar.");
+      }
+      if (!r.ok) throw new Error(j?.error || "Error al confirmar.");
       setSesionId(j.sesionId);
       setPaso(3);
     } catch (e) {

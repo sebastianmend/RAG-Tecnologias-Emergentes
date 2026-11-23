@@ -66,29 +66,27 @@ export default function UploadStep({ onListo }: { onListo: (planes: PlanDocente[
     const nuevos: Item[] = lista.map((file) => ({ file, estado: "pendiente" }));
     setItems(nuevos);
 
-    const planesListos: PlanDocente[] = [];
-    let huboError = false;
-
-    // Procesamiento estrictamente secuencial para cuidar cuota y evitar timeouts simultáneos
-    for (let i = 0; i < lista.length; i++) {
-      const f = lista[i];
-      try {
-        const plan = await extraerUnArchivo(f, (patch) => {
-          setItems((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-        });
-        planesListos.push(plan);
-      } catch (e) {
-        huboError = true;
-        setItems((prev) =>
-          prev.map((x, j) => (j === i ? { ...x, estado: "error", msg: (e as Error).message } : x))
-        );
-      }
-      if (i < lista.length - 1) {
-        await new Promise((res) => setTimeout(res, 1000));
-      }
-    }
+    // Procesamiento en paralelo de los planes docentes
+    const resultados = await Promise.all(
+      lista.map(async (f, i) => {
+        try {
+          const plan = await extraerUnArchivo(f, (patch) => {
+            setItems((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+          });
+          return plan;
+        } catch (e) {
+          setItems((prev) =>
+            prev.map((x, j) => (j === i ? { ...x, estado: "error", msg: (e as Error).message } : x))
+          );
+          return null;
+        }
+      })
+    );
 
     setOcupado(false);
+
+    const planesListos = resultados.filter((p): p is PlanDocente => !!p);
+    const huboError = resultados.some((p) => p === null);
 
     // Si todos terminaron exitosamente sin errores, avanza automáticamente
     if (!huboError && planesListos.length > 0) {
@@ -131,8 +129,7 @@ export default function UploadStep({ onListo }: { onListo: (planes: PlanDocente[
       <div>
         <h2 className="text-xl font-semibold">1. Sube tus planes docentes</h2>
         <p className="muted text-sm">
-          PDF originales de la UTPL (uno por materia, hasta 10). Se procesan uno a uno para mayor
-          estabilidad.
+          PDF originales de la UTPL (uno por materia, hasta 10). Se procesan en paralelo para máxima rapidez.
         </p>
       </div>
 
@@ -142,7 +139,7 @@ export default function UploadStep({ onListo }: { onListo: (planes: PlanDocente[
       >
         <span className="text-3xl">📄</span>
         <span className="font-semibold">
-          {ocupado ? "Procesando planes secuencialmente…" : "Haz clic para elegir tus PDF"}
+          {ocupado ? "Procesando planes en paralelo…" : "Haz clic para elegir tus PDF"}
         </span>
         <span className="muted text-sm">Cada plan puede tardar entre 15 y 35 segundos</span>
         <input
